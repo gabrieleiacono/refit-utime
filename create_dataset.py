@@ -69,7 +69,7 @@ def process_house_file(file_path):
     df = df.with_columns([
         pl.col("DateTime").str.strptime(pl.Datetime, format="%Y-%m-%d %H:%M:%S"),
         pl.col("Aggregate").cast(pl.Float64),
-        pl.col("washing_machine").cast(pl.Float64)
+        pl.col("washing_machine").cast(pl.Boolean) # interested only on binary class for now
     ])
 
     return df.collect()
