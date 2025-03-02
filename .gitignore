@@ -15,3 +15,5 @@ wheels/
 *.csv
 *.parquet
 *.zip
+*.png
+/lightning_logs/
