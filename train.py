@@ -1,20 +1,27 @@
+import os
 import torch
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import pytorch_lightning as L
 from torch.utils.data import DataLoader
+from sklearn.preprocessing import RobustScaler
 
 from utime import UTimeModel
 
 # 1. Load the washing machine data
 pdf = pd.read_parquet("washing_machine_data.parquet")
 pdf['datetime'] = pd.to_datetime(pdf['Datetime'])
+pdf = pdf[pdf['datetime'] > datetime(2014, 1, 1)]
 
 # 2. Split data into train (before 2015-01-01) and test (after)
 split_date = datetime(2015, 1, 1)
 train_df = pdf[pdf['datetime'] < split_date]
+scl = RobustScaler()
+train_df["Aggregate"] = scl.fit_transform(train_df["Aggregate"].values.reshape(-1, 1))
+
 test_df = pdf[pdf['datetime'] >= split_date]
+test_df["Aggregate"] = scl.transform(test_df["Aggregate"].values.reshape(-1, 1))
 
 print(f"Training data: {len(train_df)} rows")
 print(f"Testing data: {len(test_df)} rows")
@@ -22,7 +29,7 @@ print(f"Washing machine active in training: {train_df['washing_machine'].sum()} 
 print(f"Washing machine active in testing: {test_df['washing_machine'].sum()} rows")
 
 # 3. Process data for U-Time model - we need to segment the time series
-segment_size = 100  # Size of each segment for classification
+segment_size = 200  # Size of each segment for classification
 
 
 # Custom dataset class to prepare data for U-Time
@@ -48,8 +55,8 @@ class WashingMachineDataset(torch.utils.data.Dataset):
             features = house_df['Aggregate'].values.astype(np.float32)
             washing_machine = house_df['washing_machine'].astype(int).values
 
-            # Normalize features for better training
-            features = (features - features.mean()) / (features.std() + 1e-8)
+            # # Normalize features for better training
+            # features = (features - features.mean()) / (features.std() + 1e-8)
 
             # Calculate how many complete samples we can create
             n_samples = len(features) // self.sample_length
@@ -139,8 +146,8 @@ class BalancedWashingMachineDataset(torch.utils.data.Dataset):
             features = house_df['Aggregate'].values.astype(np.float32)
             washing_machine = house_df['washing_machine'].astype(int).values
 
-            # Normalize features for better training
-            features = (features - features.mean()) / (features.std() + 1e-8)
+            # # Normalize features for better training
+            # features = (features - features.mean()) / (features.std() + 1e-8)
 
             # Calculate how many complete samples we can create
             n_samples = len(features) // self.sample_length
@@ -220,8 +227,9 @@ class BalancedWashingMachineDataset(torch.utils.data.Dataset):
         return torch.tensor(sample, dtype=torch.float32), torch.tensor(target,
                                                                        dtype=torch.long)
 
+
 # Create datasets
-train_dataset = WashingMachineDataset(train_df, segment_size)
+train_dataset = BalancedWashingMachineDataset(train_df, segment_size)
 test_dataset = WashingMachineDataset(test_df, segment_size)
 
 print(f"Training sequences: {len(train_dataset)}")
@@ -234,23 +242,25 @@ print(f"Sample Y shape: {sample_y.shape}")
 print(f"Class balance in sample: {sample_y.sum().item()}/{len(sample_y)}")
 
 # Create data loaders
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=16)
+num_workers = os.cpu_count()
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True,
+                          num_workers=num_workers)
+test_loader = DataLoader(test_dataset, batch_size=16, num_workers=num_workers)
 
 # 4. Create a lightweight U-Time model configuration
 model = UTimeModel(
     in_channels=1,
     n_classes=2,
     segment_size=segment_size,
-    init_filters=4,
-    depth=2,
-    kernel_size=3,
+    init_filters=8,
+    depth=4,
+    kernel_size=5,
     dropout=0.2,
-    learning_rate=1e-3,
+    learning_rate=5e-3,
     log_confusion_matrix=True,
     log_predictions=True,
-    pool_sizes=[8, 4],
-    up_kernel_sizes=[4, 8]
+    # pool_sizes=[15, 12, 8],
+    # up_kernel_sizes=[8, 12, 15]
 )
 
 # 5. Configure training with early stopping
