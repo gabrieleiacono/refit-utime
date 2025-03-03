@@ -242,10 +242,11 @@ print(f"Sample Y shape: {sample_y.shape}")
 print(f"Class balance in sample: {sample_y.sum().item()}/{len(sample_y)}")
 
 # Create data loaders
-num_workers = os.cpu_count()
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True,
+num_workers = os.cpu_count() - 1
+batch_size = 128
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                           num_workers=num_workers)
-test_loader = DataLoader(test_dataset, batch_size=16, num_workers=num_workers)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, num_workers=num_workers)
 
 # 4. Create a lightweight U-Time model configuration
 model = UTimeModel(
@@ -253,7 +254,7 @@ model = UTimeModel(
     n_classes=2,
     segment_size=segment_size,
     init_filters=8,
-    depth=4,
+    depth=3,
     kernel_size=5,
     dropout=0.2,
     learning_rate=5e-3,
