@@ -2,6 +2,12 @@
 
 This project implements the U-Time architecture for detecting washing machine usage from household power consumption data. Using the REFIT dataset, we train a deep learning model to recognize washing machine operation patterns from aggregate electrical load measurements.
 
+> [!NOTE]
+> This is just a toy project I developed for personal use. This project is not actively 
+> maintained and should not be used for production purposes or any critical applications.
+> Feel free to use it for inspiration or learning.
+
+
 ## Project Overview
 
 U-Time is a fully convolutional neural network architecture for time series segmentation, adapted for this project to detect when washing machines are operating based on overall household power consumption data. This is a non-intrusive load monitoring (NILM) application that can help analyze energy usage patterns.
